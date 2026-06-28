@@ -1,0 +1,99 @@
+ZoeBobonagua_2025-0839_script_VPNsitetosite(IKEV2)_P5
+	
+R1 ISMP
+
+R2 (Peer A - Basado en Políticas IKEv2)
+! --- 1. Definir los parámetros criptográficos de Fase 1 (Proposal) ---
+crypto ikev2 proposal PROP_IKEV2
+ encryption aes-cbc-256
+ hash sha256
+ group 14
+
+! --- 2. Asociar el Proposal a una Política global ---
+crypto ikev2 policy POL_IKEV2
+ proposal PROP_IKEV2
+
+! --- 3. Crear el Llavero (Keyring) para almacenar la contraseña ---
+crypto ikev2 keyring KEY_IKEV2
+ peer ROUTER3_DERECHA
+  address 192.8.39.5
+  pre-shared-key cisco123
+
+! --- 4. Crear el Perfil IKEv2 (Une identidad, llaves y autenticación) ---
+crypto ikev2 profile PERFIL_IKEV2
+ match identity remote address 192.8.39.5 255.255.255.255
+ authentication local pre-share
+ authentication remote pre-share
+ keyring local KEY_IKEV2
+
+! --- 5. Configurar Fase 2 IPsec (Transform Set) ---
+crypto ipsec transform-set TS_IKEV2 esp-aes 256 esp-sha256-hmac
+ mode tunnel
+
+! --- 6. Lista de Acceso de Interés (Tráfico LAN A -> LAN B) ---
+ip access-list extended ACL_VPN_IKEV2
+ permit ip 192.8.39.64 0.0.0.63 192.8.39.128 0.0.0.63
+
+! --- 7. Crear el Crypto Map vinculando IKEv2 ---
+crypto map MAP_IKEV2 10 ipsec-isakmp
+ set peer 192.8.39.5
+ set transform-set TS_IKEV2
+ set ikev2-profile PERFIL_IKEV2
+ match address ACL_VPN_IKEV2
+
+! --- 8. Aplicar el Crypto Map a la interfaz WAN pública ---
+interface GigabitEthernet1/0
+ crypto map MAP_IKEV2
+
+R3 (Peer B - Basado en Políticas IKEv2)
+
+! --- 1. Definir los parámetros criptográficos de Fase 1 (Proposal) ---
+crypto ikev2 proposal PROP_IKEV2
+ encryption aes-cbc-256
+ hash sha256
+ group 14
+
+! --- 2. Asociar el Proposal a una Política global ---
+crypto ikev2 policy POL_IKEV2
+ proposal PROP_IKEV2
+
+! --- 3. Crear el Llavero (Keyring) para almacenar la contraseña ---
+crypto ikev2 keyring KEY_IKEV2
+ peer ROUTER2_IZQUIERDA
+  address 192.8.39.1
+  pre-shared-key cisco123
+
+! --- 4. Crear el Perfil IKEv2 (Une identidad, llaves y autenticación) ---
+crypto ikev2 profile PERFIL_IKEV2
+ match identity remote address 192.8.39.1 255.255.255.255
+ authentication local pre-share
+ authentication remote pre-share
+ keyring local KEY_IKEV2
+
+! --- 5. Configurar Fase 2 IPsec (Transform Set) ---
+crypto ipsec transform-set TS_IKEV2 esp-aes 256 esp-sha256-hmac
+ mode tunnel
+
+! --- 6. Lista de Acceso de Interés (Tráfico LAN B -> LAN A) ---
+ip access-list extended ACL_VPN_IKEV2
+ permit ip 192.8.39.128 0.0.0.63 192.8.39.64 0.0.0.63
+
+! --- 7. Crear el Crypto Map vinculando IKEv2 ---
+crypto map MAP_IKEV2 10 ipsec-isakmp
+ set peer 192.8.39.1
+ set transform-set TS_IKEV2
+ set ikev2-profile PERFIL_IKEV2
+ match address ACL_VPN_IKEV2
+
+! --- 8. Aplicar el Crypto Map a la interfaz WAN pública ---
+interface GigabitEthernet1/0
+ crypto map MAP_IKEV2
+
+
+VERIFICACION
+
+show crypto ikev2 sa
+
+show crypto ikev2 proposal
+
+show crypto ipsec sa
